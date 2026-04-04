@@ -1,0 +1,22 @@
+# Environment
+.env
+
+# Java
+**/target/
+**/*.class
+**/*.jar
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
