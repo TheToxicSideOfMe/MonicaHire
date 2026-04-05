@@ -1,0 +1,89 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # ─── AUTH SERVICE ───────────────────────────────
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/auth/**
+
+            # ─── USER SERVICE ───────────────────────────────
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/users/**
+
+            # ─── JOB SERVICE ────────────────────────────────
+            - id: job-service
+              uri: ${JOB_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/jobs/**
+
+            # ─── CANDIDATE SERVICE ──────────────────────────
+            - id: candidate-service
+              uri: ${CANDIDATE_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/candidates/**
+
+            # ─── INTERVIEW SERVICE ──────────────────────────
+            - id: interview-service
+              uri: ${INTERVIEW_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/interviews/**
+
+            # ─── SUBSCRIPTION SERVICE ───────────────────────
+            - id: subscription-service
+              uri: ${SUBSCRIPTION_SERVICE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/subscriptions/**
+
+            # ─── NOTIFICATION SERVICE ───────────────────────
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/notifications/**
+
+            # ─── FILE SERVICE ───────────────────────────────
+            - id: file-service
+              uri: ${FILE_SERVICE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/files/**
+
+            # ─── REPORT SERVICE ─────────────────────────────
+            - id: report-service
+              uri: ${REPORT_SERVICE_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/reports/**
+
+          globalcors:
+            corsConfigurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:3000"
+                  - "http://localhost:5173"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+# JWT — must match auth-service secret
+jwt:
+  secret: ${JWT_SECRET:g7DoV5efMmZVdb23nYIYxPPHp1yngV6xGOdCeIN2AymRideshare2026SecureKeyForAllServices}

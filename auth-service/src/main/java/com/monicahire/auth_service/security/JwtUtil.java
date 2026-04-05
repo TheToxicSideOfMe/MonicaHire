@@ -1,6 +1,5 @@
 package com.monicahire.auth_service.security;
 
-import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -10,8 +9,10 @@ import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 
 @Component
 public class JwtUtil {
@@ -27,55 +28,58 @@ public class JwtUtil {
 
     public String generateAccessToken(String userName, String role, String userId) {
         return Jwts.builder()
-                .setSubject(userName)
+                .subject(userName)
                 .claim("role", role)
-                .claim("userId", userId)  // <-- add this
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claim("userId", userId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 
-    public String generateRefreshToken(String userName){
+    public String generateRefreshToken(String userName) {
         return Jwts.builder()
-                .setSubject(userName)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis()+refreshTokenExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .subject(userName)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 
-    public Key getSigningKey(){
-        byte[] keyBytes = secret.getBytes();
-        return Keys.hmacShaKeyFor(keyBytes);
+    public SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public Claims extractAllClaims(String token){
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+    public Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);  // Get all data from token
-        return claimsResolver.apply(claims);  // Extract specific piece
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
     }
 
-    public String extractUsername(String token){
+    public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
-    public Date extractExpiration(String token){
+
+    public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
+
     public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);  // Get username from token
+        final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
+
     public Boolean validateRefreshToken(String token, String username) {
         final String tokenUsername = extractUsername(token);
         return (tokenUsername.equals(username) && !isTokenExpired(token));
