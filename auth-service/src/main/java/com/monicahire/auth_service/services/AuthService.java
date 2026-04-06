@@ -15,6 +15,8 @@ import com.monicahire.auth_service.dtos.RegisterRequest;
 import com.monicahire.auth_service.dtos.RegisterResponse;
 import com.monicahire.auth_service.exceptions.InvalidCredentialsException;
 import com.monicahire.auth_service.exceptions.UserAlreadyExistsException;
+import com.monicahire.auth_service.kafka.UserRegisteredEvent;
+import com.monicahire.auth_service.kafka.UserRegisteredProducer;
 import com.monicahire.auth_service.models.Credential;
 import com.monicahire.auth_service.models.Credential.Role;
 import com.monicahire.auth_service.repositories.CredentialRepository;
@@ -44,26 +46,37 @@ public class AuthService {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private UserRegisteredProducer userRegisteredProducer;
+    
     @Transactional
-    public RegisterResponse registerUser(RegisterRequest request){
-        //check if user exists by email or username
+    public RegisterResponse registerUser(RegisterRequest request) {
         if (credentialRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new UserAlreadyExistsException("Email already registered");
         }
         if (credentialRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new UserAlreadyExistsException("Username already taken");
         }
-
-        Credential newCredentials=new Credential();
+    
+        Credential newCredentials = new Credential();
         newCredentials.setUsername(request.getUsername());
         newCredentials.setEmail(request.getEmail());
-        newCredentials.setPassword(passwordEncoder.encode(request.getPassword())); 
-
-        newCredentials.setRole(Role.COMPANY); //set customer by default
+        newCredentials.setPassword(passwordEncoder.encode(request.getPassword()));
+        newCredentials.setRole(Role.COMPANY);
         newCredentials.setCreatedAt(LocalDateTime.now());
         newCredentials.setVerified(false);
-
-        Credential savedCredentials=credentialRepository.save(newCredentials);
+    
+        Credential savedCredentials = credentialRepository.save(newCredentials);
+    
+        // Publish event to Kafka
+        UserRegisteredEvent event = new UserRegisteredEvent(
+            savedCredentials.getId(),
+            savedCredentials.getEmail(),
+            savedCredentials.getRole().name(),
+            savedCredentials.getCreatedAt().toString()
+        );
+        userRegisteredProducer.publish(event);
+    
         return RegisterResponse.from(savedCredentials);
     }
 
