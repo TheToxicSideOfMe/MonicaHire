@@ -1,6 +1,7 @@
 package com.monicahire.user_service.services;
 
 import com.monicahire.user_service.dtos.CompleteProfileRequest;
+import com.monicahire.user_service.clients.MonicaAiClient;
 import com.monicahire.user_service.dtos.CompanyProfileResponse;
 import com.monicahire.user_service.models.CompanyIdentity;
 import com.monicahire.user_service.models.CompanyProfile;
@@ -14,10 +15,14 @@ import java.time.LocalDateTime;
 public class UserService {
  
     private final CompanyProfileRepository profileRepository;
- 
-    public UserService(CompanyProfileRepository profileRepository) {
+
+    private final MonicaAiClient monicaAiClient;
+
+    public UserService(CompanyProfileRepository profileRepository, MonicaAiClient monicaAiClient) {
         this.profileRepository = profileRepository;
+        this.monicaAiClient = monicaAiClient;
     }
+ 
  
     public CompanyProfileResponse getProfile(String userId) {
         CompanyProfile profile = profileRepository.findById(userId)
@@ -49,6 +54,7 @@ public class UserService {
         profile.setStatus(ProfileStatus.COMPLETE);
  
         CompanyProfile saved = profileRepository.save(profile);
+        monicaAiClient.embedCompany(saved.getId(), saved.getCompanyIdentity());
         return toResponse(saved);
     }
  
