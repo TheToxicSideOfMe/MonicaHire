@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from core.database import init_db
 from routers.rag import router as rag_router
+from routers.agents import router as agents_router
 
 
 @asynccontextmanager
@@ -13,6 +14,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Monica AI", lifespan=lifespan)
 
 app.include_router(rag_router)
+app.include_router(agents_router)
 
 
 @app.get("/health")

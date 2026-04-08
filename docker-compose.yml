@@ -122,25 +122,27 @@ services:
   # MONICA AI (FastAPI)
   # ─────────────────────────────────────────
   monica-ai:
-    build: ./monica-ai
-    container_name: monicahire-monica-ai
-    ports:
-      - "8000:8000"  
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-    environment:
-      PGVECTOR_URL: postgresql+asyncpg://monicahire:monicahire_secret@postgres:5432/monica_ai_db
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_EMBED_MODEL: nomic-embed-text
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
-      DEEPSEEK_BASE_URL: https://api.deepseek.com
-      DEEPSEEK_MODEL: deepseek-chat
-    networks:
-      - monicahire-network
+      build: ./monica-ai
+      container_name: monicahire-monica-ai
+      ports:
+        - "8000:8000"
+      restart: unless-stopped
+      depends_on:
+        postgres:
+          condition: service_healthy
+        ollama:
+          condition: service_healthy
+      volumes:
+        - ./monica-ai:/app        # ← this was missing
+      environment:
+        PGVECTOR_URL: postgresql+asyncpg://monicahire:monicahire_secret@postgres:5432/monica_ai_db
+        OLLAMA_BASE_URL: http://ollama:11434
+        OLLAMA_EMBED_MODEL: nomic-embed-text
+        DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+        DEEPSEEK_BASE_URL: https://api.deepseek.com
+        DEEPSEEK_MODEL: deepseek-chat
+      networks:
+        - monicahire-network
 
 # ─────────────────────────────────────────
 # VOLUMES
