@@ -18,8 +18,27 @@ public class MonicaAiClient {
     }
 
     public List<String> setupJob(String companyId, Job job) {
-        // Will be fully wired when JobSetupAgent is built in monica-ai
-        // For now returns empty list so job creation works end to end
-        return List.of();
+        Map<String, Object> body = Map.of(
+                "company_id", companyId,
+                "job_id", job.getId(),
+                "title", job.getTitle(),
+                "description", job.getDescription(),
+                "location", job.getLocation() != null ? job.getLocation() : "",
+                "employmentType", job.getEmploymentType().name(),
+                "workMode", job.getWorkMode().name(),
+                "experienceYears", job.getExperienceYears()
+        );
+    
+        // blocking call — job creation waits for questions before saving
+        var response = webClient.post()
+                .uri("/agents/setup-job")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+    
+        return (List<String>) response.get("questions");
     }
+
+    
 }
