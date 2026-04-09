@@ -11,59 +11,68 @@ spring:
       server:
         webflux:
           routes:
-            # ─── AUTH SERVICE ───────────────────────────────
             - id: auth-service
               uri: ${AUTH_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/api/auth/**
+              filters:
+                - StripPrefix=1
 
-            # ─── USER SERVICE ───────────────────────────────
             - id: user-service
               uri: ${USER_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/users/**
+              filters:
+                - StripPrefix=1
 
-            # ─── JOB SERVICE ────────────────────────────────
             - id: job-service
               uri: ${JOB_SERVICE_URL:http://localhost:8083}
               predicates:
                 - Path=/api/jobs/**
+              filters:
+                - StripPrefix=1
 
-            # ─── CANDIDATE SERVICE ──────────────────────────
             - id: candidate-service
               uri: ${CANDIDATE_SERVICE_URL:http://localhost:8084}
               predicates:
                 - Path=/api/candidates/**
+              filters:
+                - StripPrefix=1
 
-            # ─── INTERVIEW SERVICE ──────────────────────────
             - id: interview-service
               uri: ${INTERVIEW_SERVICE_URL:http://localhost:8085}
               predicates:
                 - Path=/api/interviews/**
+              filters:
+                - StripPrefix=1
 
-            # ─── SUBSCRIPTION SERVICE ───────────────────────
             - id: subscription-service
               uri: ${SUBSCRIPTION_SERVICE_URL:http://localhost:8086}
               predicates:
                 - Path=/api/subscriptions/**
+              filters:
+                - StripPrefix=1
 
-            # ─── NOTIFICATION SERVICE ───────────────────────
             - id: notification-service
               uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
               predicates:
                 - Path=/api/notifications/**
+              filters:
+                - StripPrefix=1
 
-            # ─── FILE SERVICE ───────────────────────────────
             - id: file-service
               uri: ${FILE_SERVICE_URL:http://localhost:8088}
               predicates:
                 - Path=/api/files/**
+              filters:
+                - StripPrefix=1
 
-            # ─── REPORT SERVICE ─────────────────────────────
             - id: report-service
               uri: ${REPORT_SERVICE_URL:http://localhost:8089}
               predicates:
                 - Path=/api/reports/**
+              filters:
+                - StripPrefix=1
 
           globalcors:
             corsConfigurations:
@@ -84,6 +93,5 @@ spring:
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
 
-# JWT — must match auth-service secret
 jwt:
   secret: ${JWT_SECRET:g7DoV5efMmZVdb23nYIYxPPHp1yngV6xGOdCeIN2AymRideshare2026SecureKeyForAllServices}
