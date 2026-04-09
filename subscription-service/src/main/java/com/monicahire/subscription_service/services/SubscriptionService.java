@@ -1,5 +1,6 @@
 package com.monicahire.subscription_service.services;
 
+import com.monicahire.subscription_service.dtos.PlanLimitsResponse;
 import com.monicahire.subscription_service.dtos.QuotaCheckResponse;
 import com.monicahire.subscription_service.dtos.SubscriptionResponse;
 import com.monicahire.subscription_service.models.Plan;
@@ -131,5 +132,20 @@ public class SubscriptionService {
                 .orElseThrow(() -> new RuntimeException("Usage not found"));
         usage.setReportsUsed(usage.getReportsUsed() + 1);
         usageRepository.save(usage);
+    }
+
+
+    public PlanLimitsResponse getPlanLimits(String companyId) {
+        Subscription subscription = subscriptionRepository.findByCompanyId(companyId)
+                .orElseThrow(() -> new RuntimeException("Subscription not found"));
+
+        Plan plan = planRepository.findById(subscription.getPlan())
+                .orElseThrow(() -> new RuntimeException("Plan not found"));
+
+        return new PlanLimitsResponse(
+                plan.getMaxJobs(),
+                plan.getMaxCandidatesPerJob(),
+                plan.getMaxReports()
+        );
     }
 }

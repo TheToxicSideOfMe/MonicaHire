@@ -1,5 +1,6 @@
 package com.monicahire.subscription_service.controllers;
 
+import com.monicahire.subscription_service.dtos.PlanLimitsResponse;
 import com.monicahire.subscription_service.dtos.QuotaCheckResponse;
 import com.monicahire.subscription_service.dtos.SubscriptionResponse;
 import com.monicahire.subscription_service.services.SubscriptionService;
@@ -35,5 +36,12 @@ public class SubscriptionController {
             @RequestHeader("X-User-Id") String companyId
     ) {
         return ResponseEntity.ok(subscriptionService.checkReportQuota(companyId));
+    }
+
+    @GetMapping("/plan-limits")
+    public ResponseEntity<PlanLimitsResponse> getPlanLimits(
+            @RequestHeader("X-User-Id") String companyId
+    ) {
+        return ResponseEntity.ok(subscriptionService.getPlanLimits(companyId));
     }
 }

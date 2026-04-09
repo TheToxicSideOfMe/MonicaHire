@@ -1,5 +1,6 @@
 package com.monicahire.job_service.clients;
 
+import com.monicahire.job_service.dtos.PlanLimitsResponse;
 import com.monicahire.job_service.dtos.QuotaCheckResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,15 @@ public class SubscriptionClient {
                 .header("X-User-Id", companyId)
                 .retrieve()
                 .bodyToMono(QuotaCheckResponse.class)
+                .block();
+    }
+
+    public PlanLimitsResponse getPlanLimits(String companyId) {
+        return webClient.get()
+                .uri("/subscriptions/plan-limits")
+                .header("X-User-Id", companyId)
+                .retrieve()
+                .bodyToMono(PlanLimitsResponse.class)
                 .block();
     }
 }

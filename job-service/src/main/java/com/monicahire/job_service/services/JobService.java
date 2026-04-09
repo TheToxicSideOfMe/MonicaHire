@@ -2,9 +2,7 @@ package com.monicahire.job_service.services;
 
 import com.monicahire.job_service.clients.MonicaAiClient;
 import com.monicahire.job_service.clients.SubscriptionClient;
-import com.monicahire.job_service.dtos.CreateJobRequest;
-import com.monicahire.job_service.dtos.JobResponse;
-import com.monicahire.job_service.dtos.QuotaCheckResponse;
+import com.monicahire.job_service.dtos.*;
 import com.monicahire.job_service.models.Job;
 import com.monicahire.job_service.repositories.JobRepository;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -35,13 +33,16 @@ public class JobService {
 
     @Transactional
     public JobResponse createJob(String companyId, CreateJobRequest request) {
-        // 1. Check quota
+        // 1. Check job quota
         QuotaCheckResponse quota = subscriptionClient.checkJobQuota(companyId);
         if (!quota.isAllowed()) {
             throw new RuntimeException(quota.getReason());
         }
 
-        // 2. Save job with empty questions
+        // 2. Fetch plan limits to inherit maxCandidates
+        PlanLimitsResponse limits = subscriptionClient.getPlanLimits(companyId);
+
+        // 3. Save job with empty questions and inherited maxCandidates
         Job job = new Job();
         job.setCompanyId(companyId);
         job.setTitle(request.getTitle());
@@ -50,20 +51,52 @@ public class JobService {
         job.setEmploymentType(request.getEmploymentType());
         job.setWorkMode(request.getWorkMode());
         job.setExperienceYears(request.getExperienceYears());
+        job.setMaxCandidates(limits.getMaxCandidatesPerJob());
+        job.setCurrentCandidatesCount(0);
         job.setQuestions(List.of());
         Job saved = jobRepository.save(job);
 
-        // 3. Call monica-ai JobSetupAgent
+        // 4. Call monica-ai JobSetupAgent
         List<String> questions = monicaAiClient.setupJob(companyId, saved);
 
-        // 4. Update job with questions
+        // 5. Update job with questions
         saved.setQuestions(questions);
         jobRepository.save(saved);
 
-        // 5. Publish job.created
+        // 6. Publish job.created
         kafkaTemplate.send("job.created", companyId, saved);
 
         return toResponse(saved);
+    }
+
+    /**
+     * Called by candidate-service when a candidate applies.
+     * Atomically checks capacity and increments the counter if a slot is available.
+     * -1 maxCandidates means unlimited (ENTERPRISE).
+     */
+    @Transactional
+    public SlotClaimResponse claimSlot(String jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+
+        if (job.getStatus() == Job.JobStatus.CLOSED) {
+            return new SlotClaimResponse(false, "Job is closed");
+        }
+
+        // -1 means unlimited
+        if (job.getMaxCandidates() != -1 && job.getCurrentCandidatesCount() >= job.getMaxCandidates()) {
+            return new SlotClaimResponse(false, "This job has reached its maximum number of candidates");
+        }
+
+        job.setCurrentCandidatesCount(job.getCurrentCandidatesCount() + 1);
+
+        // Auto-close job when the last slot is filled
+        if (job.getMaxCandidates() != -1 && job.getCurrentCandidatesCount() >= job.getMaxCandidates()) {
+            job.setStatus(Job.JobStatus.CLOSED);
+        }
+
+        jobRepository.save(job);
+        return new SlotClaimResponse(true, "OK");
     }
 
     public List<JobResponse> getMyJobs(String companyId) {

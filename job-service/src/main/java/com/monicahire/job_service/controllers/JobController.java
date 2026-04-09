@@ -2,6 +2,7 @@ package com.monicahire.job_service.controllers;
 
 import com.monicahire.job_service.dtos.CreateJobRequest;
 import com.monicahire.job_service.dtos.JobResponse;
+import com.monicahire.job_service.dtos.SlotClaimResponse;
 import com.monicahire.job_service.services.JobService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,5 +45,14 @@ public class JobController {
             @RequestHeader("X-User-Id") String companyId
     ) {
         return ResponseEntity.ok(jobService.closeJob(jobId, companyId));
+    }
+
+    /**
+     * Called internally by candidate-service only — not exposed to the public via gateway.
+     * Atomically checks capacity and claims a slot for an incoming candidate.
+     */
+    @PostMapping("/{jobId}/claim-slot")
+    public ResponseEntity<SlotClaimResponse> claimSlot(@PathVariable String jobId) {
+        return ResponseEntity.ok(jobService.claimSlot(jobId));
     }
 }
