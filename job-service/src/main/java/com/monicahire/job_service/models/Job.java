@@ -44,6 +44,9 @@ public class Job {
     @Column(columnDefinition = "jsonb")
     private List<String> questions;
 
+    private int maxCandidates;       // set when job is created, inherited from plan
+    private int currentCandidatesCount;  // incremented atomically on each application
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
