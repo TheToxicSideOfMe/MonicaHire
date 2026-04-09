@@ -4,6 +4,7 @@ import com.monicahire.candidate_service.clients.InterviewClient;
 import com.monicahire.candidate_service.clients.JobClient;
 import com.monicahire.candidate_service.clients.MonicaAiClient;
 import com.monicahire.candidate_service.dtos.*;
+import com.monicahire.candidate_service.kafka.CandidateSubmittedEvent;
 import com.monicahire.candidate_service.models.Candidate;
 import com.monicahire.candidate_service.models.Candidate.AnswerEntry;
 import com.monicahire.candidate_service.models.Candidate.CandidateStatus;
@@ -88,61 +89,52 @@ public class CandidateService {
 
     @Transactional
     public CandidateDto.CandidateResponse submit(CandidateDto.SubmitRequest request) {
-
+ 
         // 1. Validate and consume the token
         TokenValidationResponse validation = interviewClient.validateToken(request.getToken());
         if (!validation.isValid()) {
             throw new RuntimeException(validation.getReason());
         }
-
+ 
         // 2. Load candidate
         Candidate candidate = candidateRepository.findById(validation.getCandidateId())
                 .orElseThrow(() -> new RuntimeException("Candidate not found"));
-
-        // 3. Fetch job to get questions and pair with answers
+ 
+        // 3. Fetch job questions and pair with answers
         JobResponse job = jobClient.getJob(candidate.getJobId());
         List<String> questions = job.getQuestions();
         List<String> answers = request.getAnswers();
-
+ 
         if (answers.size() != questions.size()) {
             throw new RuntimeException(
                     "Answer count mismatch — expected " + questions.size() + ", got " + answers.size()
             );
         }
-
+ 
         List<AnswerEntry> pairedAnswers = IntStream.range(0, questions.size())
                 .mapToObj(i -> new AnswerEntry(questions.get(i), answers.get(i)))
                 .toList();
-
-        // 4. Save answers and mark submitted
+ 
+        // 4. Save answers and mark SUBMITTED
         candidate.setAnswers(pairedAnswers);
         candidate.setStatus(CandidateStatus.SUBMITTED);
         candidate.setSubmittedAt(LocalDateTime.now());
-        candidateRepository.save(candidate);
-
-        // 5. Call EvaluationAgent
-        EvaluationResponse evaluation = monicaAiClient.evaluate(
-                new EvaluationRequest(
-                        candidate.getCompanyId(),
-                        candidate.getJobId(),
-                        candidate.getCvUrl(),
+        Candidate saved = candidateRepository.save(candidate);
+ 
+        // 5. Publish candidate.submitted → consumer will call EvaluationAgent
+        kafkaTemplate.send("candidate.submitted", saved.getCompanyId(),
+                new CandidateSubmittedEvent(
+                        saved.getId(),
+                        saved.getJobId(),
+                        saved.getCompanyId(),
+                        saved.getCvUrl(),
                         pairedAnswers
                 )
         );
-
-        // 6. Save scores and mark evaluated
-        applyEvaluation(candidate, evaluation);
-        candidate.setStatus(CandidateStatus.EVALUATED);
-        candidate.setEvaluatedAt(LocalDateTime.now());
-        Candidate evaluated = candidateRepository.save(candidate);
-
-        // 7. Publish candidate.evaluated → notification-service + report-service
-        kafkaTemplate.send("candidate.evaluated", candidate.getCompanyId(), evaluated);
-
-        log.info("Candidate {} evaluated for job {} — globalScore={}", 
-                evaluated.getId(), evaluated.getJobId(), evaluated.getGlobalScore());
-
-        return toResponse(evaluated);
+ 
+        log.info("Candidate {} submitted for job {} — evaluation queued", saved.getId(), saved.getJobId());
+ 
+        return toResponse(saved);
     }
 
     // ── Company actions ───────────────────────────────────────────────────────
