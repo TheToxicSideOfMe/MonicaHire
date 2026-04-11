@@ -19,6 +19,6 @@ async def setup_job(payload: JobSetupRequest):
 async def evaluate(payload: EvaluationRequest):
     return await run_evaluation_agent(payload)
 
-@router.post("/generate-report", response_model=ReportResponse)
+@router.post("/report", response_model=ReportResponse)
 async def report(payload: ReportRequest):
     return await run_report_agent(payload)

@@ -1,13 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional
 
 
 class AnswerEntry(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     question: str
     answer: str
 
 
 class CandidateDetail(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     id: str
     job_id: str
     company_id: str
@@ -32,6 +37,8 @@ class CandidateDetail(BaseModel):
 
 
 class ReportRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     company_id: str
     job_id: str
     candidate_id: str

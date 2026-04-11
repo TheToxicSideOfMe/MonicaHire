@@ -21,7 +21,7 @@ public class CandidateClient {
 
     public CandidateDetail getCandidate(String candidateId, String companyId) {
         return webClient.get()
-                .uri("/api/candidates/{candidateId}", candidateId)
+                .uri("/candidates/{candidateId}", candidateId)
                 .header("X-User-Id", companyId)
                 .retrieve()
                 .bodyToMono(CandidateDetail.class)
