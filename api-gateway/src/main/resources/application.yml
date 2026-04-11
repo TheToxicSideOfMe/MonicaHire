@@ -32,6 +32,8 @@ spring:
               uri: ${CANDIDATE_SERVICE_URL:http://localhost:8084}
               predicates:
                 - Path=/api/candidates/**
+              filters:
+                - StripPrefix=1
 
             - id: interview-service
               uri: ${INTERVIEW_SERVICE_URL:http://localhost:8085}
@@ -42,6 +44,8 @@ spring:
               uri: ${SUBSCRIPTION_SERVICE_URL:http://localhost:8086}
               predicates:
                 - Path=/api/subscriptions/**
+              filters:
+                - StripPrefix=1
 
             - id: notification-service
               uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}

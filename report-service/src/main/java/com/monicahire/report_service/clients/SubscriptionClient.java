@@ -18,7 +18,7 @@ public class SubscriptionClient {
 
     public QuotaCheckResponse checkReportQuota(String companyId) {
         return webClient.get()
-                .uri("/api/subscriptions/check-quota/reports")
+                .uri("/subscriptions/check-quota/reports")
                 .header("X-User-Id", companyId)
                 .retrieve()
                 .bodyToMono(QuotaCheckResponse.class)
@@ -27,7 +27,7 @@ public class SubscriptionClient {
 
     public void incrementReportUsage(String companyId) {
         webClient.post()
-                .uri("/api/subscriptions/usage/reports/increment")
+                .uri("/subscriptions/usage/reports/increment")
                 .header("X-User-Id", companyId)
                 .retrieve()
                 .bodyToMono(Void.class)

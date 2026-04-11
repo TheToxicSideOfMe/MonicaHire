@@ -19,7 +19,7 @@ public class InterviewClient {
 
     public TokenGenerateResponse generateToken(String candidateId, String jobId, String companyId) {
         return webClient.post()
-                .uri("/api/interview-tokens/generate")
+                .uri("/api/interviews/generate")
                 .bodyValue(new TokenGenerateRequest(candidateId, jobId, companyId))
                 .retrieve()
                 .bodyToMono(TokenGenerateResponse.class)
@@ -28,7 +28,7 @@ public class InterviewClient {
 
     public TokenValidationResponse validateToken(String token) {
         return webClient.post()
-                .uri("/api/interview-tokens/validate")
+                .uri("/api/interviews/validate")
                 .bodyValue(new TokenValidateRequest(token))
                 .retrieve()
                 .bodyToMono(TokenValidationResponse.class)

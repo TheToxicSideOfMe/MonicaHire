@@ -147,5 +147,7 @@ public class SubscriptionService {
                 plan.getMaxCandidatesPerJob(),
                 plan.getMaxReports()
         );
+
+        
     }
 }

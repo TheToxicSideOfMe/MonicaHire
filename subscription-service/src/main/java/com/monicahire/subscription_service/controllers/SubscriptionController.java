@@ -44,4 +44,16 @@ public class SubscriptionController {
     ) {
         return ResponseEntity.ok(subscriptionService.getPlanLimits(companyId));
     }
+
+    @PostMapping("/usage/jobs/increment")
+    public ResponseEntity<Void> incrementJobUsage(@RequestHeader("X-User-Id") String companyId) {
+        subscriptionService.incrementJobUsage(companyId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PostMapping("/usage/reports/increment")
+    public ResponseEntity<Void> incrementReportUsage(@RequestHeader("X-User-Id") String companyId) {
+        subscriptionService.incrementReportUsage(companyId);
+        return ResponseEntity.noContent().build();
+    }
 }

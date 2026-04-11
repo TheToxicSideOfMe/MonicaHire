@@ -23,6 +23,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/register",
             "/api/auth/verify",
             "/api/auth/refresh",
+            "/api/candidates/apply",
+            "/api/candidates/submit",
             "/api/interviews/questions"  // candidates access this without auth
     );
  
