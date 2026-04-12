@@ -61,6 +61,7 @@ public class CandidateService {
         candidate.setJobId(request.getJobId());
         candidate.setCompanyId(job.getCompanyId());
         candidate.setName(request.getName());
+        candidate.setEmail(request.getEmail());
         candidate.setPhone(request.getPhone());
         candidate.setLocation(request.getLocation());
         candidate.setCvUrl(request.getCvUrl());
@@ -75,7 +76,7 @@ public class CandidateService {
         kafkaTemplate.send("candidate.created", saved.getCompanyId(), new java.util.HashMap<>() {{
             put("candidateId", saved.getId());
             put("candidateName", saved.getName());
-            put("candidateEmail", saved.getPhone()); // swap for email once field is added
+            put("candidateEmail", saved.getEmail()); 
             put("jobId", saved.getJobId());
             put("interviewToken", tokenResponse.getToken());
         }});

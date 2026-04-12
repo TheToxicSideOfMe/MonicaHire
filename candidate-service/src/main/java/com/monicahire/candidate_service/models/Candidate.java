@@ -28,6 +28,7 @@ public class Candidate {
     // Phase 1 — filled on apply
     private String name;
     private String phone;
+    private String email;
     private String location;
     private String cvUrl;
 
