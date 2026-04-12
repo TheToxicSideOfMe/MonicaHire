@@ -72,6 +72,7 @@ public class AuthService {
         UserRegisteredEvent event = new UserRegisteredEvent(
             savedCredentials.getId(),
             savedCredentials.getEmail(),
+            savedCredentials.getUsername(),
             savedCredentials.getRole().name(),
             savedCredentials.getCreatedAt().toString()
         );

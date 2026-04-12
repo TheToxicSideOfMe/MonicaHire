@@ -26,6 +26,9 @@ public class Subscription {
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus status;
 
+    private String email;
+    private String companyName;
+
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private LocalDateTime createdAt;

@@ -16,6 +16,6 @@ public class UserRegisteredConsumer {
 
     @KafkaListener(topics = "user.registered", groupId = "subscription-service")
     public void handle(UserRegisteredEvent event) {
-        subscriptionService.createInitialSubscription(event.getId());
+        subscriptionService.createInitialSubscription(event.getId(),event.getEmail(),event.getCompanyName());
     }
 }

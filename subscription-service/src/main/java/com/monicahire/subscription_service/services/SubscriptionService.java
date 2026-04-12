@@ -33,13 +33,15 @@ public class SubscriptionService {
 
     // Called by Kafka consumer on user.registered
     @Transactional
-    public void createInitialSubscription(String companyId) {
+    public void createInitialSubscription(String companyId,String email, String companyName) {
         if (subscriptionRepository.existsByCompanyId(companyId)) return;
 
         Subscription subscription = new Subscription();
         subscription.setCompanyId(companyId);
         subscription.setPlan(Plan.PlanName.STARTER);
         subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        subscription.setEmail(email);
+        subscription.setCompanyName(companyName);
         subscription.setStartDate(LocalDateTime.now());
         subscription.setEndDate(LocalDateTime.now().plusDays(30));
         subscriptionRepository.save(subscription);

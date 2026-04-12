@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class UserRegisteredEvent {
     private String id;
     private String email;
+    private String companyName;
     private String role;
     private String createdAt;
 }
