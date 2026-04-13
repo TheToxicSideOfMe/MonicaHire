@@ -1,147 +1,130 @@
 # MonicaHire
 
-> AI-powered hiring platform built as a distributed system.
+> AI-powered hiring platform built as a distributed microservices system.
 
-MonicaHire automates the technical screening pipeline — from generating tailored interview questions to evaluating candidates via AI agents with per-company RAG context — so hiring teams can focus on the final human decision.
-
----
-
-## What it does
-
-Companies post jobs and invite candidates via a one-time email link. Candidates complete an async interview and upload their CV. Three AI agents handle the rest: generating context-aware questions, scoring the candidate against the job's ideal profile using semantic retrieval, and producing a detailed PDF report for enterprise users.
+MonicaHire automates the entire hiring pipeline — from job posting to candidate evaluation — using AI agents, RAG, and an async event-driven architecture.
 
 ---
 
 ## Architecture
 
-MonicaHire is a distributed system composed of 10 Spring Boot microservices and one FastAPI AI layer, communicating over HTTP (synchronous) and Kafka (asynchronous).
-
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      API Gateway                         │
-│              JWT validation · routing                    │
-└────────────────────────┬────────────────────────────────┘
-                         │
-        ┌────────────────┼─────────────────┐
-        │                │                 │
-   ┌────▼────┐    ┌──────▼──────┐   ┌─────▼──────┐
-   │  auth   │    │    user     │   │    job     │
-   │ service │    │   service   │   │  service   │
-   └─────────┘    └─────────────┘   └─────┬──────┘
-                                          │
-              ┌───────────────────────────┼──────────────┐
-              │                           │              │
-       ┌──────▼──────┐            ┌───────▼──────┐  ┌───▼────────────┐
-       │  candidate  │            │  interview   │  │  subscription  │
-       │   service   │            │   service    │  │    service     │
-       └──────┬──────┘            └──────────────┘  └────────────────┘
-              │
-     ┌────────┼──────────┐
-     │        │          │
-┌────▼───┐ ┌──▼────┐ ┌───▼──────┐
-│  file  │ │report │ │notification│
-│service │ │service│ │  service  │
-└────────┘ └───────┘ └───────────┘
-                          ▲
-                    Kafka events
-
-                  ┌───────────────┐
-                  │   monica-ai   │  ← FastAPI
-                  │               │
-                  │  JobSetup     │
-                  │  Evaluation   │  ← LangGraph agents
-                  │  Report       │
-                  │               │
-                  │  RAG / pgvector│ ← per-company namespace
-                  └───────────────┘
+                        ┌─────────────────┐
+                        │   API Gateway   │  :8080
+                        │ (Spring Cloud)  │
+                        └────────┬────────┘
+                                 │ JWT Auth Filter
+           ┌──────────┬──────────┼──────────┬──────────┬──────────┐
+           │          │          │          │          │          │
+     ┌─────▼───┐ ┌────▼────┐ ┌──▼──────┐ ┌─▼───────┐ ┌▼────────┐ ┌▼──────────────┐
+     │  auth   │ │  user   │ │   job   │ │candidate│ │interview│ │ subscription  │
+     │:8081    │ │:8082    │ │:8083    │ │:8084    │ │:8085    │ │:8086          │
+     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └───────────────┘
+           │          │          │          │          │          │
+     ┌─────▼──────────▼──────────▼──────────▼──────────▼──────────▼─────┐
+     │                         Apache Kafka                               │
+     │  user.registered · job.created · candidate.created                │
+     │  candidate.submitted · candidate.evaluated · candidate.status.changed │
+     │  report.requested · report.completed · subscription.expired       │
+     └──────────┬──────────────────────────┬──────────────────────────┬──┘
+                │                          │                          │
+         ┌──────▼──────┐           ┌───────▼──────┐          ┌───────▼──────┐
+         │notification │           │    report    │          │   monica-ai  │
+         │   :8087     │           │    :8089     │          │   :8000      │
+         └─────────────┘           └──────┬───────┘          └───────┬──────┘
+                                          │                          │
+                                   ┌──────▼───────┐         ┌───────▼──────┐
+                                   │     file     │         │   pgvector   │
+                                   │    :8088     │         │  + ollama    │
+                                   └──────────────┘         └──────────────┘
 ```
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Backend services | Spring Boot 3 (Java 21) |
+| AI layer | FastAPI (Python 3.12) + DeepSeek API |
+| Message broker | Apache Kafka |
+| Databases | PostgreSQL (one per service) |
+| Vector store | pgvector |
+| Embeddings | Ollama (nomic-embed-text) |
+| File storage | Cloudinary |
+| API Gateway | Spring Cloud Gateway |
+| Containerization | Docker Compose |
+| Email | Brevo (Sendinblue) |
 
 ---
 
 ## Services
 
-| Service | Responsibility | Port |
+| Service | Port | Description |
 |---|---|---|
-| `api-gateway` | Routing, JWT validation, header forwarding | 8080 |
-| `auth-service` | Register, login, JWT issue/refresh | 8081 |
-| `user-service` | Company profile, identity | 8082 |
-| `job-service` | Job creation, listing, dashboard | 8083 |
-| `candidate-service` | Candidate lifecycle, CV, scores | 8084 |
-| `interview-service` | One-time tokens, link expiry | 8085 |
-| `subscription-service` | Plans, quotas, billing status | 8086 |
-| `notification-service` | Emails — Kafka consumer, stateless | 8087 |
-| `file-service` | Cloudinary proxy for CVs and PDFs | 8088 |
-| `report-service` | PDF generation, enterprise only | 8089 |
-| `monica-ai` | FastAPI — all AI agent logic | 8000 |
+| api-gateway | 8080 | Routing + JWT auth filter |
+| auth-service | 8081 | Register, login, JWT issue/refresh |
+| user-service | 8082 | Company profile, RAG embedding trigger |
+| job-service | 8083 | Job CRUD, slot management, JobSetupAgent trigger |
+| candidate-service | 8084 | Apply, submit interview, evaluation pipeline |
+| interview-service | 8085 | One-time token generation and validation |
+| subscription-service | 8086 | Plans, quotas, usage tracking |
+| notification-service | 8087 | Email notifications via Brevo |
+| file-service | 8088 | Cloudinary proxy for CV and report uploads |
+| report-service | 8089 | PDF report generation |
+| monica-ai | 8000 | FastAPI — all AI agents + RAG logic |
 
 ---
 
-## AI Layer — monica-ai
-
-Three LangGraph agents, each with a defined scope. All share one pgvector store partitioned by company.
+## AI Agents
 
 ### JobSetupAgent
-Triggered when a company creates a job. Retrieves the company's RAG context, analyzes job requirements, generates 5 tailored interview questions, and embeds the job context into pgvector for later retrieval.
+Triggered when a company creates a job. Retrieves company identity from RAG, analyzes job requirements, generates 5 tailored interview questions, and embeds job context into pgvector.
 
 ### EvaluationAgent
-Triggered when a candidate submits their interview. Retrieves the job's RAG context, semantically evaluates the CV against the ideal profile, scores the interview answers against company culture, runs AI detection on the answers, and returns a full breakdown of scores.
+Triggered asynchronously when a candidate submits their interview. Fetches job context from RAG, analyzes the CV, scores interview answers across 11 dimensions, detects AI usage, and produces a global score with a hiring note.
+
+**Scoring dimensions:** global score · CV score · interview score · AI percentage · experience match · skills match · education match · culture fit · communication · mindset · potential
 
 ### ReportAgent
-Triggered on demand for enterprise users. Retrieves the full candidate and job context from pgvector, builds a structured markdown report section by section, and returns it to `report-service` for PDF generation.
-
-### RAG Namespace Design
-```
-company:{id}
-└── job:{job_id}
-    ├── job description
-    ├── ideal profile
-    ├── required skills
-    └── tailored questions + reasoning
-```
-Each evaluation only retrieves from its own `company_id:job_id` namespace — no data bleeds between companies.
+Triggered on demand for enterprise users. Produces a full markdown hiring report including executive summary, strengths, areas of concern, score breakdown, interview analysis, CV analysis, culture fit, and a hiring recommendation.
 
 ---
 
-## Tech Stack
+## Key Flows
 
-**Backend services**
-- Java 21, Spring Boot 3
-- Spring Cloud Gateway
-- Spring Security (JWT at gateway level)
-- Spring Data JPA + PostgreSQL
-- Spring Kafka
-
-**AI layer**
-- Python 3.11, FastAPI
-- LangGraph (agent orchestration)
-- LangChain
-- pgvector (RAG store)
-- Ollama + nomic-embed-text (embeddings)
-- DeepSeek API (LLM)
-
-**Infrastructure**
-- Apache Kafka + Zookeeper
-- PostgreSQL 16 (one DB per service, single instance in dev)
-- pgvector (dedicated instance)
-- Cloudinary (file storage)
-- Docker Compose
-
----
-
-## Kafka Topics
-
+### Candidate applies
 ```
-user.registered
-user.profile.updated
-job.created
-job.closed
-candidate.created
-candidate.evaluated
-candidate.status.changed
-report.requested
-report.completed
-subscription.updated
-subscription.expired
+POST /candidates/apply
+  → claim slot [job-service]        ← atomic, no orphan candidates
+  → save candidate as PENDING_INTERVIEW
+  → generate token [interview-service]
+  → publish candidate.created       → notification-service sends interview email
+```
+
+### Candidate submits interview
+```
+POST /candidates/submit
+  → validate + consume token [interview-service]
+  → pair questions + answers
+  → save as SUBMITTED
+  → publish candidate.submitted     ← returns 202 immediately
+  → [async] EvaluationAgent runs
+  → save scores, status = EVALUATED
+  → publish candidate.evaluated
+```
+
+### Report generation
+```
+POST /reports/generate/{candidateId}
+  → check enterprise quota [subscription-service]
+  → save report as PENDING
+  → publish report.requested        ← returns 202 immediately
+  → [async] ReportAgent runs
+  → convert markdown to PDF
+  → upload to Cloudinary [file-service]
+  → save pdfUrl, status = COMPLETED
+  → publish report.completed        → notification-service emails company
 ```
 
 ---
@@ -150,46 +133,73 @@ subscription.expired
 
 ### Prerequisites
 - Docker + Docker Compose
-- Java 21
-- Python 3.11+
 - DeepSeek API key
+- Brevo API key
 - Cloudinary account
 
-### 1. Clone the repo
+### Setup
+
+1. Clone the repo
 ```bash
 git clone https://github.com/thetoxicsideofme/monicahire.git
 cd monicahire
 ```
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Fill in DEEPSEEK_API_KEY, CLOUDINARY_*, JWT_SECRET
+2. Create `.env` file in the root
+```env
+JWT_SECRET=your_jwt_secret
+DEEPSEEK_API_KEY=your_deepseek_key
+BREVO_API_KEY=your_brevo_key
+BREVO_SENDER_EMAIL=noreply@yourdomain.com
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
+FRONTEND_URL=http://localhost:3000
 ```
 
-### 3. Start infrastructure
+3. Pull the Ollama embedding model
 ```bash
-docker compose up -d
-```
-
-### 4. Pull the embedding model
-```bash
-chmod +x pull-models.sh
 ./pull-models.sh
 ```
 
-### 5. Start services
-Each service is a standalone Spring Boot app or FastAPI app. Start them individually during development or via their respective run configurations.
-
+4. Build and start all services
 ```bash
-# Example — auth-service
-cd auth-service
-./mvnw spring-boot:run
+docker compose build
+docker compose up -d
+```
 
-# monica-ai
-cd monica-ai
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+5. Verify everything is running
+```bash
+docker compose ps
+```
+
+### Useful URLs
+| URL | Description |
+|---|---|
+| http://localhost:8080 | API Gateway |
+| http://localhost:8000/docs | Monica AI (Swagger) |
+| http://localhost:8090 | Kafka UI |
+
+---
+
+## RAG Namespace Design
+
+```
+company:{company_id}
+└── company_identity        ← embedded on profile completion
+    (culture, values, mission, tone)
+
+company:{company_id}:job:{job_id}
+└── job_description         ← embedded after JobSetupAgent runs
+└── questions               ← tailored interview questions + reasoning
+```
+
+---
+
+## Candidate Status Flow
+
+```
+PENDING_INTERVIEW → SUBMITTED → EVALUATED → SHORTLISTED / REJECTED / HIRED
 ```
 
 ---
@@ -210,54 +220,32 @@ monicahire/
 ├── report-service/
 ├── monica-ai/
 │   ├── agents/
-│   │   ├── job_setup_agent/
-│   │   ├── evaluation_agent/
-│   │   └── report_agent/
+│   │   ├── job_setup/
+│   │   ├── evaluation/
+│   │   └── report/
 │   ├── rag/
 │   ├── routers/
-│   ├── models/
-│   ├── core/
-│   └── main.py
+│   └── core/
 ├── init-db/
-│   └── init.sql
-├── docker-compose.yml
-├── .env.example
-└── README.md
+│   └── init.sh
+└── docker-compose.yml
 ```
 
 ---
 
-## Service Ports (local dev)
+## Environment Variables Reference
 
-| Resource | URL |
-|---|---|
-| API Gateway | http://localhost:8080 |
-| Kafka UI | http://localhost:8090 |
-| Postgres | localhost:5435 |
-| pgvector | localhost:5436 |
-| Ollama | http://localhost:11435 |
-| monica-ai | http://localhost:8000 |
-
----
-
-## Status
-
-🚧 **In active development**
-
-- [x] Infrastructure — Docker Compose, Kafka, Postgres, pgvector, Ollama
-- [ ] api-gateway — JWT filter, routing
-- [ ] auth-service
-- [ ] user-service + RAG embedding
-- [ ] job-service + JobSetupAgent
-- [ ] interview-service
-- [ ] candidate-service + EvaluationAgent
-- [ ] subscription-service
-- [ ] notification-service
-- [ ] file-service
-- [ ] report-service + ReportAgent
+| Variable | Used by | Description |
+|---|---|---|
+| `JWT_SECRET` | api-gateway, auth-service | JWT signing key |
+| `DEEPSEEK_API_KEY` | monica-ai | DeepSeek LLM API key |
+| `BREVO_API_KEY` | notification-service | Brevo email API key |
+| `BREVO_SENDER_EMAIL` | notification-service | Sender email address |
+| `CLOUDINARY_CLOUD_NAME` | file-service | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | file-service | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | file-service | Cloudinary API secret |
+| `FRONTEND_URL` | notification-service | Frontend base URL for email links |
 
 ---
 
-## License
-
-MIT
+Built with 🤝 by Rayen Stark
